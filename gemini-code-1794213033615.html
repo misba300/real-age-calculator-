@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RealAge - Advanced Age & Life Analytics</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+        }
+
+        /* Drum Wheel Picker Styling */
+        .picker-container {
+            position: relative;
+            height: 180px;
+            overflow: hidden;
+            background: rgba(248, 250, 252, 0.9);
+            border-radius: 1rem;
+            border: 1px solid #e2e8f0;
+            user-select: none;
+            touch-action: pan-y;
+        }
+
+        .dark .picker-container {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: #334155;
+        }
+
+        .picker-column {
+            height: 100%;
+            overflow-y: scroll;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            scroll-snap-type: y mandatory;
+            padding-top: 70px;
+            padding-bottom: 70px;
+        }
+
+        .picker-column::-webkit-scrollbar {
+            display: none;
+        }
+
+        .picker-item {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            scroll-snap-align: center;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: color 0.15s ease, font-weight 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+
+        .dark .picker-item {
+            color: #94a3b8;
+        }
+
+        .picker-item.selected {
+            color: #4f46e5;
+            font-weight: 700;
+            font-size: 1.15rem;
+            opacity: 1;
+        }
+
+        .dark .picker-item.selected {
+            color: #818cf8;
+        }
+
+        /* Selection Box Highlight */
+        .picker-selection-bar {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 40px;
+            margin-top: -20px;
+            background: rgba(99, 102, 241, 0.12);
+            border-top: 1.5px solid rgba(99, 102, 241, 0.35);
+            border-bottom: 1.5px solid rgba(99, 102, 241, 0.35);
+            pointer-events: none;
+            z-index: 10;
+            border-radius: 8px;
+        }
+
+        /* Top & Bottom Gradient Masks with Blur Effect */
+        .picker-mask {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 70px;
+            pointer-events: none;
+            z-index: 5;
+            backdrop-filter: blur(2.5px);
+            -webkit-backdrop-filter: blur(2.5px);
+        }
+
+        .picker-mask-top {
+            top: 0;
+            background: linear-gradient(to bottom, rgba(248, 250, 252, 0.85), rgba(248, 250, 252, 0));
+        }
+
+        .dark .picker-mask-top {
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0));
+        }
+
+        .picker-mask-bottom {
+            bottom: 0;
+            background: linear-gradient(to top, rgba(248, 250, 252, 0.85), rgba(248, 250, 252, 0));
+        }
+
+        .dark .picker-mask-bottom {
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0));
+        }
+
+        .font-serif-custom {
+            font-family: 'Playfair Display', serif;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; color: black !important; }
+            .glass-panel { border: 1px solid #ccc !important; backdrop-filter: none !important; background: white !important; box-shadow: none !important; }
+            #singleResults { display: block !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300 flex flex-col">
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none no-print"></div>
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md no-print shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div>
+                        <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">RealAge</span>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 ml-2">PRO</span>
+                    </div>
+                </div>
+
+                <!-- Desktop Navigation Tabs -->
+                <nav class="hidden md:flex items-center gap-1 bg-slate-200/60 dark:bg-slate-800/60 p-1.5 rounded-xl border border-slate-300/50 dark:border-slate-700/50">
+                    <button onclick="switchTab('single')" id="tab-single" class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-700 shadow-sm">
+                        Single Age
+                    </button>
+                    <button onclick="switchTab('compare')" id="tab-compare" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200">
+                        Compare Ages
+                    </button>
+                    <button onclick="switchTab('custom')" id="tab-custom" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200">
+                        Custom Date
+                    </button>
+                    <button onclick="switchTab('history')" id="tab-history" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200 flex items-center gap-1.5">
+                        <span>History</span>
+                        <span id="historyBadge" class="px-1.5 py-0.5 text-xs bg-slate-300 dark:bg-slate-700 rounded-full font-bold">0</span>
+                    </button>
+                </nav>
+
+                <!-- Actions Right -->
+                <div class="flex items-center gap-3">
+                    <button id="themeToggleBtn" onclick="toggleTheme()" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors" title="Toggle Light/Dark Mode">
+                        <svg id="sunIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                        <svg id="moonIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                    </button>
+
+                    <button onclick="window.print()" class="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-800 hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-colors">
+                        <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        <span>Print</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Navigation Tabs -->
+            <div class="flex md:hidden border-t border-slate-200 dark:border-slate-800 py-2 gap-1 overflow-x-auto">
+                <button onclick="switchTab('single')" id="mob-tab-single" class="mob-tab-btn flex-1 min-w-[90px] py-1.5 rounded-lg text-xs font-semibold text-center text-indigo-600 bg-indigo-50 dark:bg-indigo-950">Single</button>
+                <button onclick="switchTab('compare')" id="mob-tab-compare" class="mob-tab-btn flex-1 min-w-[90px] py-1.5 rounded-lg text-xs font-medium text-center text-slate-600 dark:text-slate-400">Compare</button>
+                <button onclick="switchTab('custom')" id="mob-tab-custom" class="mob-tab-btn flex-1 min-w-[90px] py-1.5 rounded-lg text-xs font-medium text-center text-slate-600 dark:text-slate-400">Custom</button>
+                <button onclick="switchTab('history')" id="mob-tab-history" class="mob-tab-btn flex-1 min-w-[90px] py-1.5 rounded-lg text-xs font-medium text-center text-slate-600 dark:text-slate-400">History</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- MODE 1: SINGLE AGE CALCULATOR -->
+        <div id="mode-single" class="tab-content space-y-8">
+            <!-- Input Form Card -->
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none no-print">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Calculate Your Exact Age
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6">Select your date of birth using the scrolling wheel or calendar picker.</p>
+
+                <form id="singleAgeForm" onsubmit="calculateSingleAge(event)" class="space-y-6">
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        
+                        <!-- PROMINENT LARGE DOB INPUT CONTAINER -->
+                        <div class="lg:col-span-8 p-5 rounded-2xl bg-indigo-50/50 dark:bg-slate-900/60 border border-indigo-200/80 dark:border-indigo-900/50 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-bold text-indigo-900 dark:text-indigo-300 uppercase tracking-wider">
+                                    DATE OF BIRTH <span class="text-red-500">*</span>
+                                </label>
+                                <button type="button" onclick="togglePickerMode()" id="pickerModeBtn" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                    Switch to Calendar Picker
+                                </button>
+                            </div>
+
+                            <!-- 1. Scrolling Drum Wheel Picker Container -->
+                            <div id="wheelPickerWrapper" class="space-y-3">
+                                <div class="picker-container shadow-inner">
+                                    <div class="picker-selection-bar"></div>
+                                    <!-- Blurred gradient top and bottom masks -->
+                                    <div class="picker-mask picker-mask-top"></div>
+                                    <div class="picker-mask picker-mask-bottom"></div>
+                                    
+                                    <div class="grid grid-cols-3 h-full relative z-10">
+                                        <!-- Month Wheel -->
+                                        <div class="picker-column" id="wheelMonth" onscroll="onWheelScroll('Month')"></div>
+                                        <!-- Day Wheel -->
+                                        <div class="picker-column" id="wheelDay" onscroll="onWheelScroll('Day')"></div>
+                                        <!-- Year Wheel -->
+                                        <div class="picker-column" id="wheelYear" onscroll="onWheelScroll('Year')"></div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Bottom Status Layout with Interactive Current Date Picker -->
+                                <div class="flex flex-wrap items-center justify-between text-xs px-1 gap-2">
+                                    <div class="font-bold text-indigo-600 dark:text-indigo-400" id="wheelSelectedDisplay">
+                                        Selected DOB: --
+                                    </div>
+                                    <div class="flex items-center gap-1.5 font-serif-custom text-indigo-700 dark:text-indigo-300 italic text-sm font-semibold">
+                                        <span>Current date:</span>
+                                        <input type="date" id="currentDateInput" class="px-2 py-1 bg-white/80 dark:bg-slate-900/80 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs font-sans not-italic text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. Native Calendar Date Picker -->
+                            <div id="nativePickerWrapper" class="hidden">
+                                <input type="date" id="singleDobNative" class="w-full px-4 py-3 text-lg font-semibold rounded-xl border border-indigo-300 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                        </div>
+
+                        <!-- TIME OF BIRTH & FULL NAME -->
+                        <div class="lg:col-span-4 space-y-4">
+                            <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Time of Birth (Optional)</label>
+                                <input type="time" id="singleTob" step="1" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+
+                            <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Full Name (Optional)</label>
+                                <input type="text" id="singleName" placeholder="e.g. Rahul Sharma" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-wrap items-center gap-3 pt-2">
+                        <button type="submit" class="flex-1 sm:flex-none px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/25 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-6 4h6M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Calculate Age
+                        </button>
+                        <button type="button" onclick="resetSingleForm()" class="px-6 py-3.5 border border-slate-300 dark:border-slate-700 hover:bg-slate-200/50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl transition-all">
+                            Reset
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- RESULTS DASHBOARD VIEW -->
+            <div id="singleResults" class="space-y-8 hidden">
+                <div id="captureCard" class="relative overflow-hidden glass-panel p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 text-white shadow-2xl">
+                    <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span id="resName" class="text-xl sm:text-2xl font-bold tracking-tight text-white/95">User</span>
+                                <span class="px-3 py-1 rounded-full text-xs font-medium bg-white/20 backdrop-blur-md text-white border border-white/20" id="resDobFormatted">Born Jan 1, 2000</span>
+                            </div>
+                            <h3 class="text-xs uppercase tracking-widest text-indigo-200 font-semibold mb-3">YOUR EXACT CURRENT AGE</h3>
+                            <div class="flex flex-wrap items-baseline gap-4 sm:gap-6">
+                                <div>
+                                    <span id="resYears" class="text-4xl sm:text-6xl font-extrabold tracking-tight">0</span>
+                                    <span class="text-base sm:text-xl font-medium text-indigo-100 ml-1">years</span>
+                                </div>
+                                <div>
+                                    <span id="resMonths" class="text-4xl sm:text-6xl font-extrabold tracking-tight">0</span>
+                                    <span class="text-base sm:text-xl font-medium text-indigo-100 ml-1">months</span>
+                                </div>
+                                <div>
+                                    <span id="resDays" class="text-4xl sm:text-6xl font-extrabold tracking-tight">0</span>
+                                    <span class="text-base sm:text-xl font-medium text-indigo-100 ml-1">days</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-black/20 backdrop-blur-md rounded-2xl p-4 border border-white/10 min-w-[220px]">
+                            <div class="text-xs font-semibold text-indigo-200 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                Live Seconds Lived
+                            </div>
+                            <div id="resLiveSeconds" class="text-2xl sm:text-3xl font-mono font-bold tracking-tight text-emerald-300">
+                                0
+                            </div>
+                            <div class="text-[11px] text-white/70 mt-1">Updates live every second</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comprehensive Stats Grid -->
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path></svg>
+                        Life Duration Breakdown
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-indigo-500">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Months</span>
+                            <p id="statMonths" class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                        </div>
+                        <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-violet-500">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Weeks</span>
+                            <p id="statWeeks" class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                        </div>
+                        <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-purple-500">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Days</span>
+                            <p id="statDays" class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                        </div>
+                        <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-pink-500">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Hours</span>
+                            <p id="statHours" class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                        </div>
+                        <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-emerald-500">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Minutes</span>
+                            <p id="statMinutes" class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                        </div>
+                        <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-amber-500">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Seconds</span>
+                            <p id="statSeconds" class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Next Birthday & Indian Rashi Profiles Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="glass-panel p-6 sm:p-8 rounded-3xl relative overflow-hidden flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.701 2.701 0 00-1.5-.454M9 6v2m3-2v2m3-2v2M9 3h.01M12 3h.01M15 3h.01M5 21h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z"></path></svg>
+                                    Next Birthday Countdown
+                                </h3>
+                                <span id="nextAgeBadge" class="px-3 py-1 bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 rounded-full text-xs font-semibold">
+                                    Turning 25
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-4 gap-3 my-6 text-center">
+                                <div class="bg-slate-100 dark:bg-slate-800/80 p-3 rounded-2xl">
+                                    <div id="nbDays" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">00</div>
+                                    <div class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase mt-1">Days</div>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-800/80 p-3 rounded-2xl">
+                                    <div id="nbHours" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">00</div>
+                                    <div class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase mt-1">Hours</div>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-800/80 p-3 rounded-2xl">
+                                    <div id="nbMins" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">00</div>
+                                    <div class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase mt-1">Mins</div>
+                                </div>
+                                <div class="bg-slate-100 dark:bg-slate-800/80 p-3 rounded-2xl">
+                                    <div id="nbSecs" class="text-2xl sm:text-3xl font-extrabold text-pink-600 dark:text-pink-400">00</div>
+                                    <div class="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase mt-1">Secs</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
+                            <span>Next Birthday Day:</span>
+                            <span id="nextBdayDayOfWeek" class="font-bold text-slate-900 dark:text-white">Saturday</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-6 sm:p-8 rounded-3xl">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                            Indian Vedic Rashi & Life Insights
+                        </h3>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                                <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Day of Week Born</span>
+                                <div id="insightDayBorn" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-1">Friday</div>
+                            </div>
+                            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                                <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Vedic Rashi (राशि)</span>
+                                <div id="insightZodiac" class="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                                    <span>Simha (सिंह)</span> ♌
+                                </div>
+                            </div>
+                            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                                <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Chinese Zodiac</span>
+                                <div id="insightChineseZodiac" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-1">Dragon 🐉</div>
+                            </div>
+                            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+                                <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Birthstone / Flower</span>
+                                <div id="insightStone" class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white mt-1">Diamond / Daisy</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-xs text-amber-900 dark:text-amber-300">
+                            <span class="font-bold">Rashi Trait:</span> <span id="zodiacTrait">Confident, ambitious, and generous.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Bar -->
+                <div class="glass-panel p-6 rounded-3xl flex flex-wrap items-center justify-between gap-4 no-print">
+                    <div class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Export & Share Options:
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button onclick="saveCurrentToHistory()" class="px-4 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
+                            Save Result
+                        </button>
+                        <button onclick="copyFormattedSummary()" class="px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                            Copy Summary
+                        </button>
+                        <button onclick="exportResultAsJpeg()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-emerald-600/20">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Save as JPEG
+                        </button>
+                        <button onclick="downloadJsonReport()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Export JSON
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- MODE 2: AGE COMPARISON -->
+        <div id="mode-compare" class="tab-content space-y-8 hidden">
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl shadow-xl">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                    Compare Ages Between Two People
+                </h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Enter birth dates of Person A and Person B to discover exact age differences.</p>
+
+                <form onsubmit="compareAges(event)" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 space-y-4">
+                            <h3 class="font-bold text-sm text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Person A</h3>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Name</label>
+                                <input type="text" id="compNameA" placeholder="e.g. Person 1" value="Person A" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Date of Birth <span class="text-red-500">*</span></label>
+                                <input type="date" id="compDobA" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+                            </div>
+                        </div>
+
+                        <div class="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 space-y-4">
+                            <h3 class="font-bold text-sm text-violet-600 dark:text-violet-400 uppercase tracking-wider">Person B</h3>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Name</label>
+                                <input type="text" id="compNameB" placeholder="e.g. Person 2" value="Person B" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Date of Birth <span class="text-red-500">*</span></label>
+                                <input type="date" id="compDobB" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full sm:w-auto px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg transition-all">
+                        Compare Ages
+                    </button>
+                </form>
+            </div>
+
+            <div id="compareResults" class="space-y-6 hidden">
+                <div class="glass-panel p-6 sm:p-8 rounded-3xl border-l-8 border-l-indigo-600">
+                    <h3 id="compareHeadline" class="text-xl font-bold text-slate-900 dark:text-white mb-2">Person A is older than Person B</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-6">Exact age difference calculated with leap year accuracy:</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-indigo-50 dark:bg-indigo-950/40 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
+                            <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase">Years, Months, Days</span>
+                            <div id="compDiffYmd" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">0 Years, 0 Months, 0 Days</div>
+                        </div>
+                        <div class="bg-slate-100 dark:bg-slate-800/80 p-5 rounded-2xl">
+                            <span class="text-xs font-semibold text-slate-500 uppercase">Total Days Difference</span>
+                            <div id="compDiffDays" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">0 Days</div>
+                        </div>
+                        <div class="bg-slate-100 dark:bg-slate-800/80 p-5 rounded-2xl">
+                            <span class="text-xs font-semibold text-slate-500 uppercase">Total Hours Difference</span>
+                            <div id="compDiffHours" class="text-2xl font-bold text-slate-900 dark:text-white mt-1">0 Hours</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                            <span class="font-bold text-indigo-600" id="badgeNameA">Person A</span>: <span id="badgeAgeA">0 Years</span>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                            <span class="font-bold text-violet-600" id="badgeNameB">Person B</span>: <span id="badgeAgeB">0 Years</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODE 3: CUSTOM TARGET DATE CALCULATOR -->
+        <div id="mode-custom" class="tab-content space-y-8 hidden">
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl shadow-xl">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Calculate Age on a Custom Target Date
+                </h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Find out how old you were on a historical date, or will be on a future date.</p>
+
+                <form onsubmit="calculateCustomTargetAge(event)" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Date of Birth <span class="text-red-500">*</span></label>
+                            <input type="date" id="custDob" required class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2">Target Date <span class="text-red-500">*</span></label>
+                            <input type="date" id="custTarget" required class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="px-8 py-3.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl shadow-lg transition-all">
+                        Calculate Custom Age
+                    </button>
+                </form>
+            </div>
+
+            <div id="custResults" class="glass-panel p-6 sm:p-8 rounded-3xl border-l-8 border-l-violet-600 hidden">
+                <span class="text-xs font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">Target Date Calculation</span>
+                <h3 id="custHeadline" class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1 mb-4">On Jan 1, 2030, you will be:</h3>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800">
+                        <span class="text-xs text-slate-500">Exact Age</span>
+                        <div id="custYmd" class="text-xl font-bold text-slate-900 dark:text-white mt-1">0Y 0M 0D</div>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800">
+                        <span class="text-xs text-slate-500">Total Days</span>
+                        <div id="custTotalDays" class="text-xl font-bold text-slate-900 dark:text-white mt-1">0 Days</div>
+                    </div>
+                    <div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800">
+                        <span class="text-xs text-slate-500">Day of Week on Target</span>
+                        <div id="custTargetDayOfWeek" class="text-xl font-bold text-slate-900 dark:text-white mt-1">Monday</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODE 4: HISTORY & SAVED CALCULATIONS -->
+        <div id="mode-history" class="tab-content space-y-6 hidden">
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Saved Calculations History
+                        </h2>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Access saved profile calculations stored locally on your device.</p>
+                    </div>
+
+                    <button onclick="clearAllHistory()" class="px-4 py-2 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 text-xs font-semibold rounded-xl transition-all">
+                        Clear History
+                    </button>
+                </div>
+
+                <div id="historyList" class="space-y-3">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400 mt-auto no-print">
+        <div class="max-w-7xl mx-auto px-4">
+            RealAge Pro &bull; Precise Date Math Engine & Vedic Indian Rashi Insights. developed by 
+          <a href="https://misba300.github.io/Portfolio-/" target="_blank" rel="noopener noreferrer" style="cursor: pointer; color: #4f46e5;" >Misbahul Hoque</a>
+          <a href="https://www.instagram.com/misba__300?igsh=MWR5ZTB1cnY1MnJobw==" id="i" style="color:brown;">Tap to Follow on Instagram</a>
+        </div>
+    </footer>
+
+    <!-- JS Logic -->
+    <script>
+        let state = {
+            activeTab: 'single',
+            pickerMode: 'wheel',
+            currentSingleResult: null,
+            timerInterval: null,
+            history: [],
+            wheelSelectedMonth: 0,
+            wheelSelectedDay: 1,
+            wheelSelectedYear: 2000
+        };
+
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('singleDobNative').max = todayStr;
+            document.getElementById('compDobA').max = todayStr;
+            document.getElementById('compDobB').max = todayStr;
+            document.getElementById('custDob').max = todayStr;
+
+            // Set default current date input to today
+            document.getElementById('currentDateInput').value = todayStr;
+
+            initDrumWheelPicker();
+            loadHistory();
+        });
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('RealAge_theme');
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.getElementById('sunIcon').classList.remove('hidden');
+                document.getElementById('moonIcon').classList.add('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('sunIcon').classList.add('hidden');
+                document.getElementById('moonIcon').classList.remove('hidden');
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('RealAge_theme', isDark ? 'dark' : 'light');
+            document.getElementById('sunIcon').classList.toggle('hidden', !isDark);
+            document.getElementById('moonIcon').classList.toggle('hidden', isDark);
+            showToast(`Switched to ${isDark ? 'Dark' : 'Light'} Mode`, 'info');
+        }
+
+        function switchTab(tabId) {
+            state.activeTab = tabId;
+
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`mode-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all duration-200';
+            });
+            const activeDesktopBtn = document.getElementById(`tab-${tabId}`);
+            if (activeDesktopBtn) {
+                activeDesktopBtn.className = 'tab-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-700 shadow-sm';
+            }
+
+            document.querySelectorAll('.mob-tab-btn').forEach(btn => {
+                btn.className = 'mob-tab-btn flex-1 min-w-[90px] py-1.5 rounded-lg text-xs font-medium text-center text-slate-600 dark:text-slate-400';
+            });
+            const activeMobBtn = document.getElementById(`mob-tab-${tabId}`);
+            if (activeMobBtn) {
+                activeMobBtn.className = 'mob-tab-btn flex-1 min-w-[90px] py-1.5 rounded-lg text-xs font-semibold text-center text-indigo-600 bg-indigo-50 dark:bg-indigo-950';
+            }
+        }
+
+        function initDrumWheelPicker() {
+            const currentYear = new Date().getFullYear();
+
+            const monthCol = document.getElementById('wheelMonth');
+            monthCol.innerHTML = monthNames.map((m, idx) => `
+                <div class="picker-item" data-val="${idx}">${m}</div>
+            `).join('');
+
+            buildDayWheelOptions(2000, 0);
+
+            const yearCol = document.getElementById('wheelYear');
+            let yearHtml = '';
+            for (let y = currentYear; y >= 1900; y--) {
+                yearHtml += `<div class="picker-item" data-val="${y}">${y}</div>`;
+            }
+            yearCol.innerHTML = yearHtml;
+
+            setTimeout(() => {
+                scrollToWheelValue('wheelMonth', 0);
+                scrollToWheelValue('wheelDay', 1);
+                scrollToWheelValue('wheelYear', 2000);
+                updateSelectedDisplay();
+            }, 50);
+        }
+
+        function buildDayWheelOptions(year, month) {
+            const dayCol = document.getElementById('wheelDay');
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            let dayHtml = '';
+            for (let d = 1; d <= daysInMonth; d++) {
+                dayHtml += `<div class="picker-item" data-val="${d}">${String(d).padStart(2, '0')}</div>`;
+            }
+            dayCol.innerHTML = dayHtml;
+
+            if (state.wheelSelectedDay > daysInMonth) {
+                state.wheelSelectedDay = daysInMonth;
+            }
+        }
+
+        function scrollToWheelValue(columnId, val) {
+            const col = document.getElementById(columnId);
+            const items = col.querySelectorAll('.picker-item');
+            items.forEach((item, idx) => {
+                if (parseInt(item.dataset.val, 10) === parseInt(val, 10)) {
+                    col.scrollTop = idx * 40;
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        function onWheelScroll(type) {
+            const col = document.getElementById(`wheel${type}`);
+            const itemIndex = Math.round(col.scrollTop / 40);
+            const items = col.querySelectorAll('.picker-item');
+
+            items.forEach((item, idx) => {
+                if (idx === itemIndex) {
+                    item.classList.add('selected');
+                    const val = parseInt(item.dataset.val, 10);
+                    if (type === 'Month') state.wheelSelectedMonth = val;
+                    if (type === 'Day') state.wheelSelectedDay = val;
+                    if (type === 'Year') state.wheelSelectedYear = val;
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+
+            if (type === 'Month' || type === 'Year') {
+                buildDayWheelOptions(state.wheelSelectedYear, state.wheelSelectedMonth);
+            }
+
+            updateSelectedDisplay();
+        }
+
+        function updateSelectedDisplay() {
+            const dayStr = String(state.wheelSelectedDay).padStart(2, '0');
+            const monthStr = monthNames[state.wheelSelectedMonth];
+            const displayStr = `${dayStr} ${monthStr} ${state.wheelSelectedYear}`;
+            document.getElementById('wheelSelectedDisplay').textContent = `Selected DOB: ${displayStr}`;
+        }
+
+        function togglePickerMode() {
+            if (state.pickerMode === 'wheel') {
+                state.pickerMode = 'native';
+                document.getElementById('wheelPickerWrapper').classList.add('hidden');
+                document.getElementById('nativePickerWrapper').classList.remove('hidden');
+                document.getElementById('pickerModeBtn').textContent = 'Switch to Scroll Wheel Picker';
+            } else {
+                state.pickerMode = 'wheel';
+                document.getElementById('nativePickerWrapper').classList.add('hidden');
+                document.getElementById('wheelPickerWrapper').classList.remove('hidden');
+                document.getElementById('pickerModeBtn').textContent = 'Switch to Calendar Picker';
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let bgClass = 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900';
+            if (type === 'error') bgClass = 'bg-red-600 text-white';
+            if (type === 'success') bgClass = 'bg-emerald-600 text-white';
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 transform transition-all duration-300 opacity-0 translate-y-2 ${bgClass}`;
+            toast.innerHTML = `<span>${message}</span>`;
+            
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('opacity-0', 'translate-y-2');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function parseLocalDate(dateStr) {
+            if (!dateStr) return null;
+            const [y, m, d] = dateStr.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function isLeapYear(year) {
+            return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+        }
+
+        function calculateExactAge(birthDate, targetDate = new Date()) {
+            let bYear = birthDate.getFullYear();
+            let bMonth = birthDate.getMonth();
+            let bDay = birthDate.getDate();
+
+            let tYear = targetDate.getFullYear();
+            let tMonth = targetDate.getMonth();
+            let tDay = targetDate.getDate();
+
+            if (bMonth === 1 && bDay === 29 && !isLeapYear(tYear)) {
+                bDay = 28;
+            }
+
+            let years = tYear - bYear;
+            let months = tMonth - bMonth;
+            let days = tDay - bDay;
+
+            if (days < 0) {
+                months--;
+                const prevMonthDate = new Date(tYear, tMonth, 0);
+                days += prevMonthDate.getDate();
+            }
+
+            if (months < 0) {
+                years--;
+                months += 12;
+            }
+
+            const diffMs = targetDate.getTime() - birthDate.getTime();
+            const totalSeconds = Math.floor(diffMs / 1000);
+            const totalMinutes = Math.floor(totalSeconds / 60);
+            const totalHours = Math.floor(totalMinutes / 60);
+            const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const totalWeeks = Math.floor(totalDays / 7);
+            const totalMonths = (years * 12) + months;
+
+            return {
+                years,
+                months,
+                days,
+                totalMonths,
+                totalWeeks,
+                totalDays,
+                totalHours,
+                totalMinutes,
+                totalSeconds,
+                diffMs
+            };
+        }
+
+        function calculateSingleAge(e) {
+            e.preventDefault();
+
+            let birthDate;
+            let dobStr;
+
+            if (state.pickerMode === 'wheel') {
+                birthDate = new Date(state.wheelSelectedYear, state.wheelSelectedMonth, state.wheelSelectedDay);
+                const mStr = String(state.wheelSelectedMonth + 1).padStart(2, '0');
+                const dStr = String(state.wheelSelectedDay).padStart(2, '0');
+                dobStr = `${state.wheelSelectedYear}-${mStr}-${dStr}`;
+            } else {
+                dobStr = document.getElementById('singleDobNative').value;
+                if (!dobStr) {
+                    showToast('Please select a valid Date of Birth', 'error');
+                    return;
+                }
+                birthDate = parseLocalDate(dobStr);
+            }
+
+            const nameInput = document.getElementById('singleName').value.trim();
+            const tobStr = document.getElementById('singleTob').value;
+
+            if (tobStr) {
+                const [h, m, s] = tobStr.split(':').map(Number);
+                birthDate.setHours(h || 0, m || 0, s || 0);
+            }
+
+            // Get target current date from picker input
+            const targetDateInputVal = document.getElementById('currentDateInput').value;
+            const targetDate = targetDateInputVal ? parseLocalDate(targetDateInputVal) : new Date();
+
+            if (birthDate > targetDate) {
+                showToast('Date of birth cannot be after the target current date', 'error');
+                return;
+            }
+
+            const ageStats = calculateExactAge(birthDate, targetDate);
+            const lifeInsights = getIndianVedicLifeInsights(birthDate);
+            const nextBdayStats = getNextBirthdayStats(birthDate, targetDate);
+
+            state.currentSingleResult = {
+                name: nameInput || 'User',
+                birthDate,
+                dobStr,
+                ageStats,
+                lifeInsights,
+                nextBdayStats
+            };
+
+            renderSingleResults();
+            showToast('Age calculated successfully!', 'success');
+        }
+
+        function renderSingleResults() {
+            const res = state.currentSingleResult;
+            if (!res) return;
+
+            document.getElementById('resName').textContent = res.name;
+            document.getElementById('resDobFormatted').textContent = `Born ${res.birthDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
+
+            document.getElementById('resYears').textContent = res.ageStats.years;
+            document.getElementById('resMonths').textContent = res.ageStats.months;
+            document.getElementById('resDays').textContent = res.ageStats.days;
+
+            document.getElementById('statMonths').textContent = res.ageStats.totalMonths.toLocaleString();
+            document.getElementById('statWeeks').textContent = res.ageStats.totalWeeks.toLocaleString();
+            document.getElementById('statDays').textContent = res.ageStats.totalDays.toLocaleString();
+            document.getElementById('statHours').textContent = res.ageStats.totalHours.toLocaleString();
+            document.getElementById('statMinutes').textContent = res.ageStats.totalMinutes.toLocaleString();
+            document.getElementById('statSeconds').textContent = res.ageStats.totalSeconds.toLocaleString();
+
+            document.getElementById('nextAgeBadge').textContent = `Turning ${res.ageStats.years + 1}`;
+            document.getElementById('nextBdayDayOfWeek').textContent = res.nextBdayStats.dayOfWeek;
+
+            document.getElementById('insightDayBorn').textContent = res.lifeInsights.dayOfWeek;
+            document.getElementById('insightZodiac').innerHTML = `<span>${res.lifeInsights.vedicRashi.name}</span> ${res.lifeInsights.vedicRashi.symbol}`;
+            document.getElementById('insightChineseZodiac').textContent = `${res.lifeInsights.chineseZodiac.name} ${res.lifeInsights.chineseZodiac.symbol}`;
+            document.getElementById('insightStone').textContent = `${res.lifeInsights.birthstone} / ${res.lifeInsights.birthflower}`;
+            document.getElementById('zodiacTrait').textContent = res.lifeInsights.vedicRashi.trait;
+
+            document.getElementById('singleResults').classList.remove('hidden');
+
+            if (state.timerInterval) clearInterval(state.timerInterval);
+            updateLiveTimers();
+            state.timerInterval = setInterval(updateLiveTimers, 1000);
+        }
+
+        function updateLiveTimers() {
+            if (!state.currentSingleResult) return;
+            const birthDate = state.currentSingleResult.birthDate;
+            const now = new Date();
+
+            const secondsLived = Math.floor((now - birthDate) / 1000);
+            document.getElementById('resLiveSeconds').textContent = secondsLived.toLocaleString();
+
+            const nextBdayStats = getNextBirthdayStats(birthDate, now);
+            document.getElementById('nbDays').textContent = String(nextBdayStats.days).padStart(2, '0');
+            document.getElementById('nbHours').textContent = String(nextBdayStats.hours).padStart(2, '0');
+            document.getElementById('nbMins').textContent = String(nextBdayStats.minutes).padStart(2, '0');
+            document.getElementById('nbSecs').textContent = String(nextBdayStats.seconds).padStart(2, '0');
+        }
+
+        function resetSingleForm() {
+            document.getElementById('singleAgeForm').reset();
+            document.getElementById('currentDateInput').value = new Date().toISOString().split('T')[0];
+            document.getElementById('singleResults').classList.add('hidden');
+            if (state.timerInterval) clearInterval(state.timerInterval);
+            state.currentSingleResult = null;
+            showToast('Form reset', 'info');
+        }
+
+        function getIndianVedicLifeInsights(birthDate) {
+            const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayOfWeek = daysOfWeek[birthDate.getDay()];
+
+            const month = birthDate.getMonth() + 1;
+            const day = birthDate.getDate();
+            const year = birthDate.getFullYear();
+
+            const vedicRashi = getIndianRashi(month, day);
+            const chineseZodiac = getChineseZodiac(year);
+
+            const birthstoneMap = {
+                1: { stone: 'Garnet', flower: 'Carnation' },
+                2: { stone: 'Amethyst', flower: 'Violet' },
+                3: { stone: 'Aquamarine', flower: 'Daffodil' },
+                4: { stone: 'Diamond', flower: 'Daisy' },
+                5: { stone: 'Emerald', flower: 'Lily of the Valley' },
+                6: { stone: 'Pearl', flower: 'Rose' },
+                7: { stone: 'Ruby', flower: 'Larkspur' },
+                8: { stone: 'Peridot', flower: 'Gladiolus' },
+                9: { stone: 'Sapphire', flower: 'Aster' },
+                10: { stone: 'Opal', flower: 'Marigold' },
+                11: { stone: 'Topaz', flower: 'Chrysanthemum' },
+                12: { stone: 'Turquoise', flower: 'Narcissus' }
+            };
+
+            const sf = birthstoneMap[month];
+
+            return {
+                dayOfWeek,
+                vedicRashi,
+                chineseZodiac,
+                birthstone: sf.stone,
+                birthflower: sf.flower
+            };
+        }
+
+        function getIndianRashi(month, day) {
+            if ((month == 3 && day >= 21) || (month == 4 && day <= 19)) 
+                return { name: 'Mesh (मेष)', symbol: '♈', trait: 'Courageous, ambitious, energetic, and a natural leader.' };
+            if ((month == 4 && day >= 20) || (month == 5 && day <= 20)) 
+                return { name: 'Vrishabh (वृषभ)', symbol: '♉', trait: 'Patient, reliable, practical, artistic, and determined.' };
+            if ((month == 5 && day >= 21) || (month == 6 && day <= 20)) 
+                return { name: 'Mithun (मिथुन)', symbol: '♊', trait: 'Intellectual, adaptable, expressive, and quick-witted.' };
+            if ((month == 6 && day >= 21) || (month == 7 && day <= 22)) 
+                return { name: 'Kark (कर्क)', symbol: '♋', trait: 'Intuitive, nurturing, protective, and deeply devoted.' };
+            if ((month == 7 && day >= 23) || (month == 8 && day <= 22)) 
+                return { name: 'Simha (सिंह)', symbol: '♌', trait: 'Royal, confident, generous, charismatic, and fearless.' };
+            if ((month == 8 && day >= 23) || (month == 9 && day <= 22)) 
+                return { name: 'Kanya (कन्या)', symbol: '♍', trait: 'Analytical, meticulous, modest, helpful, and intelligent.' };
+            if ((month == 9 && day >= 23) || (month == 10 && day <= 22)) 
+                return { name: 'Tula (तुला)', symbol: '♎', trait: 'Harmonious, graceful, diplomatic, and just.' };
+            if ((month == 10 && day >= 23) || (month == 11 && day <= 21)) 
+                return { name: 'Vrishchik (वृश्चिक)', symbol: '♏', trait: 'Intense, intuitive, loyal, determined, and magnetic.' };
+            if ((month == 11 && day >= 22) || (month == 12 && day <= 21)) 
+                return { name: 'Dhanu (धनु)', symbol: '♐', trait: 'Optimistic, philosophical, adventurous, and truthful.' };
+            if ((month == 12 && day >= 22) || (month == 1 && day <= 19)) 
+                return { name: 'Makar (मकर)', symbol: '♑', trait: 'Disciplined, pragmatic, ambitious, and highly responsible.' };
+            if ((month == 1 && day >= 20) || (month == 2 && day <= 18)) 
+                return { name: 'Kumbh (कुंभ)', symbol: '♒', trait: 'Humanitarian, progressive, original, and visionary.' };
+            return { name: 'Meen (मीन)', symbol: '♓', trait: 'Compassionate, spiritual, imaginative, and empathetic.' };
+        }
+
+        function getChineseZodiac(year) {
+            const animals = [
+                { name: 'Monkey', symbol: '🐒' }, { name: 'Rooster', symbol: '🐓' },
+                { name: 'Dog', symbol: '🐕' }, { name: 'Pig', symbol: '🐖' },
+                { name: 'Rat', symbol: '🐀' }, { name: 'Ox', symbol: '🐂' },
+                { name: 'Tiger', symbol: '🐅' }, { name: 'Rabbit', symbol: '🐇' },
+                { name: 'Dragon', symbol: '🐉' }, { name: 'Snake', symbol: '🐍' },
+                { name: 'Horse', symbol: '🐎' }, { name: 'Goat', symbol: '🐐' }
+            ];
+            return animals[year % 12];
+        }
+
+        function getNextBirthdayStats(birthDate, now) {
+            const currentYear = now.getFullYear();
+            let nextBday = new Date(currentYear, birthDate.getMonth(), birthDate.getDate());
+
+            if (birthDate.getMonth() === 1 && birthDate.getDate() === 29 && !isLeapYear(currentYear)) {
+                nextBday = new Date(currentYear, 1, 28);
+            }
+
+            if (nextBday < now) {
+                const nextYear = currentYear + 1;
+                nextBday = new Date(nextYear, birthDate.getMonth(), birthDate.getDate());
+                if (birthDate.getMonth() === 1 && birthDate.getDate() === 29 && !isLeapYear(nextYear)) {
+                    nextBday = new Date(nextYear, 1, 28);
+                }
+            }
+
+            const diffMs = nextBday - now;
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+            const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+            return {
+                days,
+                hours,
+                minutes,
+                seconds,
+                dayOfWeek: daysOfWeek[nextBday.getDay()]
+            };
+        }
+
+        function compareAges(e) {
+            e.preventDefault();
+            const nameA = document.getElementById('compNameA').value.trim() || 'Person A';
+            const dobAStr = document.getElementById('compDobA').value;
+            const nameB = document.getElementById('compNameB').value.trim() || 'Person B';
+            const dobBStr = document.getElementById('compDobB').value;
+
+            if (!dobAStr || !dobBStr) {
+                showToast('Please select Date of Birth for both people', 'error');
+                return;
+            }
+
+            const dateA = parseLocalDate(dobAStr);
+            const dateB = parseLocalDate(dobBStr);
+
+            let older, younger, olderName, youngerName;
+            if (dateA < dateB) {
+                older = dateA; olderName = nameA;
+                younger = dateB; youngerName = nameB;
+            } else if (dateB < dateA) {
+                older = dateB; olderName = nameB;
+                younger = dateA; youngerName = nameA;
+            } else {
+                showToast('Both individuals share the exact same date of birth!', 'info');
+                document.getElementById('compareHeadline').textContent = `${nameA} and ${nameB} are exactly the same age!`;
+                document.getElementById('compDiffYmd').textContent = '0 Years, 0 Months, 0 Days';
+                document.getElementById('compDiffDays').textContent = '0 Days';
+                document.getElementById('compDiffHours').textContent = '0 Hours';
+                document.getElementById('compareResults').classList.remove('hidden');
+                return;
+            }
+
+            const diffStats = calculateExactAge(older, younger);
+            const now = new Date();
+            const ageA = calculateExactAge(dateA, now);
+            const ageB = calculateExactAge(dateB, now);
+
+            document.getElementById('compareHeadline').textContent = `${olderName} is older than ${youngerName}`;
+            document.getElementById('compDiffYmd').textContent = `${diffStats.years} Years, ${diffStats.months} Months, ${diffStats.days} Days`;
+            document.getElementById('compDiffDays').textContent = `${diffStats.totalDays.toLocaleString()} Days`;
+            document.getElementById('compDiffHours').textContent = `${diffStats.totalHours.toLocaleString()} Hours`;
+
+            document.getElementById('badgeNameA').textContent = nameA;
+            document.getElementById('badgeAgeA').textContent = `${ageA.years} Years, ${ageA.months} Months`;
+            document.getElementById('badgeNameB').textContent = nameB;
+            document.getElementById('badgeAgeB').textContent = `${ageB.years} Years, ${ageB.months} Months`;
+
+            document.getElementById('compareResults').classList.remove('hidden');
+            showToast('Age comparison calculated!', 'success');
+        }
+
+        function calculateCustomTargetAge(e) {
+            e.preventDefault();
+            const dobStr = document.getElementById('custDob').value;
+            const targetStr = document.getElementById('custTarget').value;
+
+            if (!dobStr || !targetStr) {
+                showToast('Please select both Date of Birth and Target Date', 'error');
+                return;
+            }
+
+            const birthDate = parseLocalDate(dobStr);
+            const targetDate = parseLocalDate(targetStr);
+
+            if (targetDate < birthDate) {
+                showToast('Target date cannot be before Date of Birth', 'error');
+                return;
+            }
+
+            const stats = calculateExactAge(birthDate, targetDate);
+            const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+            const formattedTarget = targetDate.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+            document.getElementById('custHeadline').textContent = `On ${formattedTarget}, you will be:`;
+            document.getElementById('custYmd').textContent = `${stats.years}Y ${stats.months}M ${stats.days}D`;
+            document.getElementById('custTotalDays').textContent = `${stats.totalDays.toLocaleString()} Days`;
+            document.getElementById('custTargetDayOfWeek').textContent = daysOfWeek[targetDate.getDay()];
+
+            document.getElementById('custResults').classList.remove('hidden');
+            showToast('Custom target age calculated!', 'success');
+        }
+
+        function loadHistory() {
+            try {
+                const stored = localStorage.getItem('RealAge_history');
+                state.history = stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                state.history = [];
+            }
+            renderHistory();
+        }
+
+        function saveCurrentToHistory() {
+            if (!state.currentSingleResult) {
+                showToast('No active calculation to save', 'error');
+                return;
+            }
+
+            const res = state.currentSingleResult;
+            const newItem = {
+                id: Date.now(),
+                name: res.name,
+                dobStr: res.dobStr,
+                calculatedAt: new Date().toLocaleDateString()
+            };
+
+            state.history.unshift(newItem);
+            if (state.history.length > 20) state.history.pop();
+            localStorage.setItem('RealAge_history', JSON.stringify(state.history));
+            renderHistory();
+            showToast('Result saved to history', 'success');
+        }
+
+        function deleteHistoryItem(id) {
+            state.history = state.history.filter(item => item.id !== id);
+            localStorage.setItem('RealAge_history', JSON.stringify(state.history));
+            renderHistory();
+            showToast('Item deleted', 'info');
+        }
+
+        function clearAllHistory() {
+            if (confirm('Are you sure you want to clear all saved calculation history?')) {
+                state.history = [];
+                localStorage.removeItem('RealAge_history');
+                renderHistory();
+                showToast('History cleared', 'info');
+            }
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyList');
+            const badge = document.getElementById('historyBadge');
+            badge.textContent = state.history.length;
+
+            if (state.history.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">No saved calculations in history yet.</div>`;
+                return;
+            }
+
+            container.innerHTML = state.history.map(item => `
+                <div class="flex items-center justify-between p-4 rounded-2xl bg-slate-100/70 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 transition-all">
+                    <div>
+                        <h4 class="font-bold text-slate-900 dark:text-white text-sm">${item.name}</h4>
+                        <p class="text-xs text-slate-500">DOB: ${item.dobStr} &bull; Saved: ${item.calculatedAt}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="deleteHistoryItem(${item.id})" class="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exportResultAsJpeg() {
+            if (!state.currentSingleResult) {
+                showToast('No active calculation to export', 'error');
+                return;
+            }
+
+            const res = state.currentSingleResult;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 800;
+            canvas.height = 500;
+            const ctx = canvas.getContext('2d');
+
+            const grad = ctx.createLinearGradient(0, 0, 800, 500);
+            grad.addColorStop(0, '#4f46e5');
+            grad.addColorStop(1, '#6d28d9');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 800, 500);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 32px Inter, sans-serif';
+            ctx.fillText(`RealAge Report: ${res.name}`, 40, 60);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.font = '18px Inter, sans-serif';
+            ctx.fillText(`Date of Birth: ${res.dobStr} (${res.lifeInsights.dayOfWeek})`, 40, 95);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.roundRect ? ctx.roundRect(40, 130, 720, 140, 20) : ctx.fillRect(40, 130, 720, 140);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 54px Inter, sans-serif';
+            ctx.fillText(`${res.ageStats.years}`, 70, 200);
+            ctx.font = '20px Inter, sans-serif';
+            ctx.fillText('Years', 140, 200);
+
+            ctx.font = 'bold 54px Inter, sans-serif';
+            ctx.fillText(`${res.ageStats.months}`, 310, 200);
+            ctx.font = '20px Inter, sans-serif';
+            ctx.fillText('Months', 380, 200);
+
+            ctx.font = 'bold 54px Inter, sans-serif';
+            ctx.fillText(`${res.ageStats.days}`, 550, 200);
+            ctx.font = '20px Inter, sans-serif';
+            ctx.fillText('Days', 620, 200);
+
+            ctx.font = '16px Inter, sans-serif';
+            ctx.fillStyle = '#e0e7ff';
+            ctx.fillText(`Total Days Lived: ${res.ageStats.totalDays.toLocaleString()}`, 40, 310);
+            ctx.fillText(`Total Hours Lived: ${res.ageStats.totalHours.toLocaleString()}`, 40, 340);
+            ctx.fillText(`Vedic Rashi (राशि): ${res.lifeInsights.vedicRashi.name}`, 40, 370);
+            ctx.fillText(`Chinese Zodiac: ${res.lifeInsights.chineseZodiac.name}`, 40, 400);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+            const link = document.createElement('a');
+            link.download = `RealAge_${res.name.replace(/\s+/g, '_')}.jpg`;
+            link.href = dataUrl;
+            link.click();
+
+            showToast('JPEG report generated and downloaded!', 'success');
+        }
+
+        function copyFormattedSummary() {
+            if (!state.currentSingleResult) return;
+            const res = state.currentSingleResult;
+            const text = `RealAge Profile for ${res.name}:
+- Born: ${res.dobStr} (${res.lifeInsights.dayOfWeek})
+- Exact Age: ${res.ageStats.years} Years, ${res.ageStats.months} Months, ${res.ageStats.days} Days
+- Total Days Lived: ${res.ageStats.totalDays.toLocaleString()}
+- Vedic Rashi (राशि): ${res.lifeInsights.vedicRashi.name} ${res.lifeInsights.vedicRashi.symbol}
+- Chinese Zodiac: ${res.lifeInsights.chineseZodiac.name} ${res.lifeInsights.chineseZodiac.symbol}
+- Next Birthday: Turning ${res.ageStats.years + 1} in ${res.nextBdayStats.days} days!`;
+
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Summary copied to clipboard!', 'success');
+            } catch (err) {
+                showToast('Failed to copy text', 'error');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function downloadJsonReport() {
+            if (!state.currentSingleResult) return;
+            const res = state.currentSingleResult;
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `RealAge_${res.name.replace(/\s+/g, '_')}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('JSON file downloaded', 'success');
+        }
+    </script>
+</body>
+</html>
